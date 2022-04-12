@@ -6,6 +6,8 @@ The script allows images to be zoomed to the full width of the view port so the 
 
 It also allows users to continue scrolling and allowing it to automatically resign into its original placment.
 
+![demo video](demo.gif)
+
 ## Installation
 
 To install it into your Publish package, add it as a dependency within your `Package.swift` manifest:

@@ -11,34 +11,47 @@ import Publish
 
 // MARK: - create the plugin
 public extension Plugin {
-	static func zoomImage(showCaption: Bool = true) -> Self {
-		Plugin(name: "ImageZoom") { context in
+    static func zoomImage(_ options: ZoomOptions = ZoomOptions()) -> Self {
+        Plugin(name: "ImageZoom") { context in
 
-			// -- add the script
-			let jsFile = try context.createOutputFile(at: "zoom-image.js")
-			try jsFile.write(zoomImageJavascriptFile())
+            // -- write the library + auto-init as a single bundled file
+            let jsFile = try context.createOutputFile(at: "zoom-image.js")
+            try jsFile.write(zoomImageBundle(options))
 
-			context.markdownParser.addModifier(
-				.zoomImage(showCaption: showCaption)
-			)
-		}
-	}
+            context.markdownParser.addModifier(
+                .zoomImage(options: options)
+            )
+        }
+    }
 }
 
-// MARK: - create the modifiers
-public extension Modifier {
-	internal static func zoomImage(showCaption: Bool) -> Self {
-		Modifier(target: .images) { html, markdown in
-			return Builder()
-				.zoom(showCaption: showCaption, html: html, markdown: markdown)
-		}
-	}
+// MARK: - create the modifier
+internal extension Modifier {
+    static func zoomImage(options: ZoomOptions) -> Self {
+        Modifier(target: .images) { html, markdown in
+            return Builder()
+                .zoom(options: options, html: html, markdown: markdown)
+        }
+    }
 }
 
-// MARK: - custom JS file
-fileprivate func zoomImageJavascriptFile() -> String {
-	return try! File(path: #filePath)
-		.parent?
-		.file(named: "Support/Utilities/zoom-image.js")
-		.readAsString() as! String
+// MARK: - build the bundled JS output (library + init call)
+private func zoomImageBundle(_ options: ZoomOptions) throws -> String {
+    guard let library = try File(path: #filePath)
+        .parent?
+        .file(named: "Support/Utilities/zoom-image.js")
+        .readAsString() else {
+        throw ImageZoomError.missingLibraryFile
+    }
+
+    let initScript = """
+    ;mediumZoom('[data-zoomable="true"]',{margin:\(options.margin),background:"\(options.background)",scrollOffset:\(options.scrollOffset)});
+    """
+
+    return library + initScript
+}
+
+// MARK: - errors
+enum ImageZoomError: Error {
+    case missingLibraryFile
 }

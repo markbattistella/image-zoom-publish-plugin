@@ -1,139 +1,148 @@
 # Image Zoom for Publish
 
-Add a `medium.com` style image zoom for images within your document.
+Add a `medium.com` style image zoom for images within your Publish site.
 
-The script allows images to be zoomed to the full width of the view port so the user can expand images beyond the container width.
-
-Users can continue scrolling and theimage will resign into its original place.
+Clicking an image expands it to fill the viewport. Scrolling dismisses it and animates it back into place.
 
 ![demo video](demo.gif)
 
 ## Installation
 
-To install it into your Publish package, add it as a dependency within your `Package.swift` manifest:
+Add the package as a dependency in your `Package.swift`:
 
 ```swift
 let package = Package(
-  dependencies: [
-    .package(
-      name: "ImageZoom",
-      url: "https://github.com/markbattistella/image-zoom-publish-plugin",
-      from: "1.1.0"
-	)
-  ],
-  targets: [
-    .target(dependencies: ["ImageZoom"])
-  ]
+    dependencies: [
+        .package(
+            url: "https://github.com/markbattistella/image-zoom-publish-plugin",
+            from: "2.0.0"
+        )
+    ],
+    targets: [
+        .target(dependencies: ["ImageZoom"])
+    ]
 )
 ```
 
-You will need to add two javascript items into your `<footer>`.
+## Setup
 
-The best way to inject the script is to add it to your `.footer` element:
+### 1. Install the plugin
 
-```swift
-extension Node where Context == HTML.BodyContext {
-  static func footer(for site: Website) -> Node {
-    return .footer(
-      ...
-      .raw("<script src='zoom-image.js'></script>"),
-      .raw("<script>mediumZoom('[data-zoomable="true"]', { margin: 20, background: '#FFF' });</script>")
-      ...
-    )
-  }
-}
-```
-
-## Configuration
-
-In the script configuration is where you can set up the medium.com style zooming.
-
-```javascript
-mediumZoom('[data-zoomable="true"]', {
-	margin: 20,
-	background: '#FFF'
-})
-```
-
-The first line is **mandatory** otherwise the images won't register the script.
-
-You can change the `margin` and the `background`.
-
-The `margin` is how much you want the image to be inset when enlarged into full view. It is in pixels.
-
-The `background` is the colour of the overlay which the image sits on top of. The best way to handle it is to use a CSS variable and trigger it for light and dark mode.
-
-For example:
-
-```css
-::root {
-  --background-colour: rgb( 255, 255, 255 );
-}
-
-@media all and (prefers-color-scheme: dark) {
-	::root {
-	  --background-colour: rgb( 0, 0, 0 );
-	}
-}
-```
-
-```javascript
-mediumZoom('[data-zoomable="true"]', {
-	margin: 20,
-	background: 'var(--background-colour)'
-})
-```
-
-## Usage
-
-### Pipeline
-
-The plugin can then be used within any publishing pipeline like this:
+Add `.installPlugin(.zoomImage())` to your publishing pipeline:
 
 ```swift
 import ImageZoom
 
-try DeliciousRecipes().publish(using: [
-  .installPlugin(.zoomImage())
+try MyWebsite().publish(using: [
+    .installPlugin(.zoomImage())
 ])
 ```
 
-By default it will show the image captions, however if you wish to hide them under the image do so by installing the plugin as:
+### 2. Add the script to your theme
+
+Import `ImageZoom` and call `.zoomImageScripts()` once in your theme. It can go in `<head>` or at the end of `<body>` — the script loads with `defer` so it is non-blocking either way:
 
 ```swift
-import ExtraComponents
+import ImageZoom
 
-try DeliciousRecipes().publish(using: [
-  .installPlugin(.zoomImage(showCaption: false))
-])
+extension Node where Context == HTML.BodyContext {
+    static func footer(for site: MyWebsite) -> Node {
+        .footer(
+            ...
+            .zoomImageScripts()
+        )
+    }
+}
 ```
+
+That's it. When you build your site the plugin writes a single `zoom-image.js` to your output directory (the zoom library bundled with your configured options), and `.zoomImageScripts()` adds the `<script>` tag pointing to it.
+
+## Configuration
+
+Pass a `ZoomOptions` value to `.zoomImage()` to customise the behaviour. All parameters are optional and fall back to their defaults:
+
+```swift
+.installPlugin(.zoomImage(ZoomOptions(
+    background: "var(--zoom-background)",
+    margin: 24,
+    scrollOffset: 40,
+    showCaption: false
+)))
+```
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `background` | `String` | `"#fff"` | Overlay colour behind the zoomed image. Accepts any CSS value. |
+| `margin` | `Int` | `20` | Inset (in pixels) between the zoomed image and the viewport edges. |
+| `scrollOffset` | `Int` | `40` | Pixels the user must scroll before the image dismisses. |
+| `showCaption` | `Bool` | `true` | Render a `<figcaption>` below each image using its alt text. |
+
+### Dark mode
+
+Pass a CSS variable for `background` to respond to the user's colour scheme automatically:
+
+```css
+:root {
+    --zoom-background: rgb(255, 255, 255);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --zoom-background: rgb(0, 0, 0);
+    }
+}
+```
+
+```swift
+.installPlugin(.zoomImage(ZoomOptions(
+    background: "var(--zoom-background)"
+)))
+```
+
+## Usage
 
 ### Markdown
 
-When writing your markdown documents you add an image as you normally would. This will automatically be transformed into accepting the zooming attributes.
+Images are zoomable by default — no changes to your existing markdown are needed:
 
 ```markdown
 ![My image](/my-awesome-image.jpg)
 ```
 
-If you want to disable the zooming on a specific image add the `nozoom` attribute after the image url:
+**Disable zoom on a specific image** using the `nozoom` flag (case-insensitive):
 
 ```markdown
-![My image - this wont zoom](/my-awesome-image.jpg nozoom)
+![My image](/my-awesome-image.jpg nozoom)
 ```
 
-It is case insensitive, so any variation should work: `NOZOOM`, `noZoom`, `NoZoom`, or even `nOZooM`
+**Specify a high-resolution zoom source** using the `zoomsrc=` flag. The thumbnail is shown inline; the full-res version loads on zoom:
+
+```markdown
+![My image](/thumbnail.jpg zoomsrc=/fullsize.jpg)
+```
+
+### Generated HTML
+
+Each image is wrapped in a `<figure>` element. When `showCaption` is enabled (the default), a `<figcaption>` is rendered below it using the image's alt text:
+
+```html
+<figure>
+    <img src="/my-awesome-image.jpg"
+         alt="My image"
+         title="My image"
+         data-zoomable="true">
+    <figcaption>My image</figcaption>
+</figure>
+```
+
+Images with `nozoom` receive `data-zoomable="false"` and are excluded from the zoom behaviour. You can target both elements with CSS using the `figure` and `figcaption` selectors.
 
 ## Contributing
 
-I've turned off Issues and if you wish to add/change the codebase please create a Pull Request.
-
-This way everyone can allow these components to grow, and be the best rather than waiting on me to write it.
-
-### How to help
+To contribute, create a Pull Request:
 
 1. Clone the repo: `git clone https://github.com/markbattistella/image-zoom-publish-plugin.git`
 1. Create your feature branch: `git checkout -b my-feature`
 1. Commit your changes: `git commit -am 'Add some feature'`
-1. Push to the branch: `git push origin my-new-feature`
+1. Push to the branch: `git push origin my-feature`
 1. Submit the pull request

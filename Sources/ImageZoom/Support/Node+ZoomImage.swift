@@ -1,6 +1,6 @@
 //
+//  markbattistella.com
 //  Created by Mark Battistella
-//	@markbattistella
 //
 
 import Plot

@@ -1,12 +1,12 @@
 //
+//  markbattistella.com
 //  Created by Mark Battistella
-//	@markbattistella
 //
 
 import Foundation
 
 /// Configuration options for the image zoom behaviour.
-public struct ZoomOptions {
+public struct ZoomOptions: Sendable {
 
     /// The background colour of the overlay shown behind the zoomed image.
     /// Accepts any valid CSS colour value: hex (`"#fff"`), rgba (`"rgba(0,0,0,0.9)"`),

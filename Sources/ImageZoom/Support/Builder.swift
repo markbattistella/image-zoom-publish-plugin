@@ -1,6 +1,6 @@
 //
+//  markbattistella.com
 //  Created by Mark Battistella
-//	markbattistella.com
 //
 
 import Foundation
@@ -8,40 +8,40 @@ import Publish
 import Ink
 import Plot
 
-// MARK: - the magic
-final class Builder {
+/// Parses an Ink image markdown node and produces a zoomable HTML figure element.
+struct Builder {
 
+    /// Transforms an image markdown node into a `<figure>` element with zoom support.
+    ///
+    /// Recognises two optional tokens after the image URL in the markdown source:
+    /// - `nozoom` — disables zoom on this image
+    /// - `zoomsrc=<url>` — provides a high-resolution URL loaded when zooming
+    ///
+    /// - Parameters:
+    ///   - options: The zoom configuration applied to all images.
+    ///   - html: The default HTML string produced by the Ink parser (used as fallback).
+    ///   - markdown: The raw markdown substring for the image node.
+    /// - Returns: Rendered HTML string for the figure, or the original `html` if parsing fails.
     func zoom(options: ZoomOptions, html: String, markdown: Substring) -> String {
+        guard
+            let text = markdown.content(delimitedBy: .squareBrackets),
+            let link = markdown.content(delimitedBy: .parentheses)
+        else { return html }
 
-        // -- get the text component
-        guard let text = markdown.content(delimitedBy: .squareBrackets) else { return html }
-
-        // -- get the link component
-        guard let link = markdown.content(delimitedBy: .parentheses) else { return html }
-
-        // -- split into whitespace-separated tokens, ignoring empty strings
-        let parts: [String] = link
-            .components(separatedBy: CharacterSet.whitespaces)
+        let parts = link
+            .components(separatedBy: .whitespaces)
             .filter { !$0.isEmpty }
 
-        // -- the first token is always the image URL
         let imageUrl = parts[0]
+        let flags = parts.dropFirst()
 
-        // -- scan remaining tokens for known flags
-        var isZoomable = true
-        var zoomSrc: String? = nil
+        let isZoomable = !flags.contains { $0.lowercased() == "nozoom" }
+        let zoomSrc = flags
+            .first { $0.lowercased().hasPrefix("zoomsrc=") }
+            .map { String($0.dropFirst("zoomsrc=".count)) }
 
-        for token in parts.dropFirst() {
-            if token.lowercased() == "nozoom" {
-                isZoomable = false
-            } else if token.lowercased().hasPrefix("zoomsrc=") {
-                zoomSrc = String(token.dropFirst("zoomsrc=".count))
-            }
-        }
-
-        // -- build the <img> node, conditionally adding data-zoom-src
         let imgNode: Node<HTML.BodyContext>
-        if let zoomSrc = zoomSrc {
+        if let zoomSrc {
             imgNode = .img(
                 .src(imageUrl),
                 .alt(String(text)),
@@ -58,7 +58,6 @@ final class Builder {
             )
         }
 
-        // -- wrap in <figure> with optional <figcaption>
         let node: Node<HTML.BodyContext> = .figure(
             imgNode,
             .if(options.showCaption && !text.isEmpty, .figcaption(.text(String(text))))

@@ -66,7 +66,7 @@ private func zoomImageBundle(_ options: ZoomOptions) throws -> String {
         throw ImageZoomError.missingLibraryFile
     }
 
-    let initScript = ";mediumZoom('[data-zoomable=\"true\"]',{margin:\(options.margin),background:\"\(options.background)\",scrollOffset:\(options.scrollOffset)});"
+    let initScript = ";mediumZoom('[data-zoomable=\"true\"]',{margin:\(options.margin),background:\"\(options.background)\",scrollOffset:\(options.scrollOffset),showCaption:\(options.showCaption)});"
 
     return library + initScript
 }

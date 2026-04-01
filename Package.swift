@@ -29,7 +29,8 @@ let package = Package(
     targets: [
         .target(
             name: "ImageZoom",
-            dependencies: ["Publish"]
+            dependencies: ["Publish"],
+            exclude: ["Support/Utilities/zoom-image.js"]
         )
     ]
 )

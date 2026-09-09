@@ -5,15 +5,6 @@
 //
 
 import PackageDescription
-import Foundation
-
-let localPublishPath = FileManager.default.homeDirectoryForCurrentUser
-    .appendingPathComponent("Sites/_publish-packages/Publish@0.8.0/Package.swift")
-    .path
-
-let publishDependency: Package.Dependency = FileManager.default.fileExists(atPath: localPublishPath)
-    ? .package(name: "Publish", path: "../../Publish@0.8.0")
-    : .package(url: "https://github.com/johnsundell/publish.git", from: "0.8.0")
 
 let package = Package(
     name: "ImageZoom",
@@ -24,12 +15,17 @@ let package = Package(
         )
     ],
     dependencies: [
-        publishDependency
+        .package(
+            url: "https://github.com/johnsundell/publish.git",
+            .upToNextMinor(from: "0.8.0")
+        )
     ],
     targets: [
         .target(
             name: "ImageZoom",
-            dependencies: ["Publish"],
+            dependencies: [
+                .product(name: "Publish", package: "publish")
+            ],
             exclude: ["Support/Utilities/zoom-image.js"]
         )
     ]
